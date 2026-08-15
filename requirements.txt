@@ -2,3 +2,6 @@ fastapi
 uvicorn[standard]
 pillow
 python-multipart
+pillow-avif-plugin
+pytest
+httpx2
