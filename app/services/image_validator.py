@@ -7,21 +7,22 @@ from PIL import (
     Image,
     UnidentifiedImageError,
 )
-
-from app.core.config import (
-    ALLOWED_INPUT_FORMATS,
-    MAX_ANIMATION_FRAMES,
-    MAX_IMAGE_PIXELS,
-    MAX_UPLOAD_SIZE,
+from app.core.errors import (
+    InvalidImageError,
+    UnsupportedFormatError,
 )
+from app.core.config import settings
 
 
-class ImageValidationError(Exception):
-    """Raised when uploaded image data is invalid."""
-
-
-class UnsupportedImageFormatError(Exception):
-    """Raised when the image format is not supported."""
+ALLOWED_INPUT_FORMATS = {
+    "JPEG",
+    "PNG",
+    "WEBP",
+    "GIF",
+    "BMP",
+    "TIFF",
+    "AVIF",
+}
 
 
 class ImageValidator:
@@ -32,15 +33,15 @@ class ImageValidator:
     ) -> None:
 
         if not image_bytes:
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The uploaded file is empty."
             )
 
-        if len(image_bytes) > MAX_UPLOAD_SIZE:
-            raise ImageValidationError(
+        if len(image_bytes) > settings.max_upload_size:
+            raise InvalidImageError(
                 "The uploaded file exceeds the maximum "
                 f"allowed size of "
-                f"{MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+                f"{settings.max_upload_size // (1024 * 1024)} MB."
             )
 
     def open_and_validate(
@@ -69,13 +70,13 @@ class ImageValidator:
 
         except Image.DecompressionBombError as exc:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The image dimensions are too large."
             ) from exc
 
         except Image.DecompressionBombWarning as exc:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The image dimensions are too large."
             ) from exc
 
@@ -85,7 +86,7 @@ class ImageValidator:
             SyntaxError,
         ) as exc:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The uploaded file is not a valid image."
             ) from exc
 
@@ -100,7 +101,7 @@ class ImageValidator:
             OSError,
         ) as exc:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The uploaded file could not be decoded."
             ) from exc
 
@@ -108,7 +109,7 @@ class ImageValidator:
 
         if actual_format not in ALLOWED_INPUT_FORMATS:
 
-            raise UnsupportedImageFormatError(
+            raise UnsupportedFormatError(
                 f"Input image format '{actual_format}' "
                 "is not supported."
             )
@@ -117,9 +118,9 @@ class ImageValidator:
 
         total_pixels = width * height
 
-        if total_pixels > MAX_IMAGE_PIXELS:
+        if total_pixels > settings.max_image_pixels:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The image contains too many pixels."
             )
 
@@ -129,9 +130,9 @@ class ImageValidator:
             1,
         )
 
-        if frame_count > MAX_ANIMATION_FRAMES:
+        if frame_count > settings.max_animation_frames:
 
-            raise ImageValidationError(
+            raise InvalidImageError(
                 "The animated image contains too many frames."
             )
 

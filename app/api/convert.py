@@ -8,7 +8,7 @@ from fastapi import (
 from fastapi.responses import Response
 from pydantic import ValidationError
 
-from app.core.config import MAX_UPLOAD_SIZE
+from app.core.config import settings
 
 from app.schemas.image import (
     BackgroundOptions,
@@ -24,15 +24,18 @@ from app.services.image_processor import (
     ImageProcessingError,
     ImageProcessor,
 )
-
-from app.services.image_validator import (
-    ImageValidationError,
-    ImageValidator,
-    UnsupportedImageFormatError,
+from app.services.image_validator import ImageValidator
+from app.core.errors import (
+    InvalidProcessingOptionsError,
 )
+# from app.services.image_validator import (
+#     ImageValidationError,
+#     ImageValidator,
+#     UnsupportedImageFormatError,
+# )
 
 from app.utils.uploads import (
-    UploadTooLargeError,
+    # UploadTooLargeError,
     read_upload_limited,
 )
 
@@ -100,35 +103,27 @@ async def convert_image(
         # Read upload with a hard size limit
         # -----------------------------------------------------
 
+
+        image_bytes = await read_upload_limited(
+            file,
+            settings.max_upload_size,
+        )
         try:
 
-            image_bytes = await read_upload_limited(
-                file,
-                MAX_UPLOAD_SIZE,
+            output_options = OutputOptions(
+                format=format.lower(),
+                quality=quality,
+                lossless=lossless,
+                progressive=progressive,
+                compression_level=compression_level,
+                method=method,
             )
-            try:
 
-                output_options = OutputOptions(
-                    format=format.lower(),
-                    quality=quality,
-                    lossless=lossless,
-                    progressive=progressive,
-                    compression_level=compression_level,
-                    method=method,
-                )
+        except ValidationError as exc:
 
-            except ValidationError as exc:
-
-                raise HTTPException(
-                    status_code=422,
-                    detail=exc.errors(),
-                ) from exc
-
-        except UploadTooLargeError as exc:
-
-            raise HTTPException(
-                status_code=413,
-                detail=str(exc),
+            raise InvalidProcessingOptionsError(
+                "Request validation failed.",
+                details=exc.errors(),
             ) from exc
 
         # -----------------------------------------------------
@@ -169,12 +164,9 @@ async def convert_image(
             for value in crop_values
         ):
 
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "crop_x, crop_y, crop_width, "
-                    "and crop_height must be provided together."
-                ),
+            raise InvalidProcessingOptionsError(
+                "crop_x, crop_y, crop_width, "
+                "and crop_height must be provided together."
             )
 
         # -----------------------------------------------------
@@ -253,30 +245,9 @@ async def convert_image(
             },
         )
 
-    except UnsupportedImageFormatError as exc:
-
-        raise HTTPException(
-            status_code=415,
-            detail=str(exc),
-        ) from exc
-
-    except ImageValidationError as exc:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
     except ValidationError as exc:
 
-        raise HTTPException(
-            status_code=422,
-            detail=exc.errors(),
-        ) from exc
-
-    except ImageProcessingError as exc:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
+        raise InvalidProcessingOptionsError(
+            "Request validation failed.",
+            details=exc.errors(),
         ) from exc

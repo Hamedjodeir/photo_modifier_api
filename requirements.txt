@@ -5,3 +5,4 @@ python-multipart
 pillow-avif-plugin
 pytest
 httpx2
+pydantic-settings

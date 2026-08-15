@@ -7,7 +7,8 @@ import pillow_avif
 from PIL import Image, ImageOps
 
 from app.schemas.image import ImageProcessingOptions
-
+from app.core.errors import InvalidImageError
+from app.core.errors import ImageProcessingError
 
 FORMAT_MAP = {
     "jpeg": "JPEG",
@@ -36,10 +37,6 @@ MIME_TYPES = {
     "bmp": "image/bmp",
     "tiff": "image/tiff",
 }
-
-
-class ImageProcessingError(Exception):
-    """Raised when an image cannot be processed."""
 
 
 class ImageProcessor:

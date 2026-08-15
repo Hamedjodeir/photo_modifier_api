@@ -1,8 +1,6 @@
 from fastapi import UploadFile
 
-
-class UploadTooLargeError(Exception):
-    """Raised when an upload exceeds the configured size limit."""
+from app.core.errors import FileTooLargeError
 
 
 async def read_upload_limited(
@@ -27,8 +25,9 @@ async def read_upload_limited(
 
         if total_size > max_size:
 
-            raise UploadTooLargeError(
-                "Uploaded file exceeds the maximum allowed size."
+            raise FileTooLargeError(
+                "Uploaded file exceeds the maximum "
+                "allowed size."
             )
 
         chunks.append(chunk)

@@ -108,12 +108,19 @@ def convert(
 
 
 def test_health():
-    response = client.get("/health")
+
+    response = client.get(
+        "/health"
+    )
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "status": "ok"
+    data = response.json()
+
+    assert data == {
+        "status": "ok",
+        "service": "Photo Modifier API",
+        "version": "0.1.0",
     }
 
 
@@ -646,3 +653,132 @@ def test_avif_to_webp():
     assert output.format == "WEBP"
 
 
+def test_health_contains_service_information():
+
+    response = client.get(
+        "/health"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "ok"
+    assert data["service"] == "Photo Modifier API"
+    assert data["version"] == "0.1.0"
+
+
+def test_readiness():
+
+    response = client.get(
+        "/ready"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "ready"
+
+
+def test_request_id_is_returned():
+
+    response = client.get(
+        "/health"
+    )
+
+    assert response.status_code == 200
+
+    request_id = response.headers.get(
+        "X-Request-ID"
+    )
+
+    assert request_id is not None
+    assert len(request_id) > 0
+
+
+def test_process_time_header_is_returned():
+
+    response = client.get(
+        "/health"
+    )
+
+    assert response.status_code == 200
+
+    assert "X-Process-Time-Ms" in (
+        response.headers
+    )
+
+
+def test_invalid_request_has_standard_error_shape():
+
+    response = client.post(
+        "/v1/convert",
+        files={
+            "file": (
+                "test.jpg",
+                create_test_image("JPEG"),
+                "image/jpeg",
+            )
+        },
+        data={
+            "format": "banana",
+        },
+    )
+
+    assert response.status_code == 422
+
+    data = response.json()
+
+    assert "error" in data
+    assert "request_id" in data
+
+    assert data["error"]["code"] == (
+        "validation_error"
+    )
+
+    assert "message" in data["error"]
+
+
+def test_invalid_image_has_standard_error_shape():
+
+    response = client.post(
+        "/v1/convert",
+        files={
+            "file": (
+                "fake.jpg",
+                b"not an image",
+                "image/jpeg",
+            )
+        },
+        data={
+            "format": "webp",
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.json()
+
+    assert "error" in data
+    assert "request_id" in data
+
+    assert data["error"]["code"] == (
+        "invalid_request"
+    )
+
+
+def test_request_ids_are_unique():
+
+    first = client.get(
+        "/health"
+    )
+
+    second = client.get(
+        "/health"
+    )
+
+    first_id = first.headers["X-Request-ID"]
+    second_id = second.headers["X-Request-ID"]
+
+    assert first_id != second_id
